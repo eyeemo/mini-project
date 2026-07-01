@@ -1,0 +1,60 @@
+# Blueprint Render — auto-cipta web service + database PostgreSQL.
+# Render → New → Blueprint → pilih repo ni → Apply.
+
+databases:
+  - name: mini-project-db
+    plan: free
+    databaseName: mini_project
+    user: mini_project
+
+services:
+  - type: web
+    name: mini-project
+    runtime: docker
+    plan: free
+    region: singapore
+    healthCheckPath: /up
+    envVars:
+      - key: APP_NAME
+        value: "Item Manager"
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      # APP_KEY — kena isi sendiri di dashboard (Render minta masa Apply)
+      - key: APP_KEY
+        sync: false
+      - key: LOG_CHANNEL
+        value: stderr
+      # Sambungan database — auto dari database di atas
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DB_HOST
+        fromDatabase:
+          name: mini-project-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: mini-project-db
+          property: port
+      - key: DB_DATABASE
+        fromDatabase:
+          name: mini-project-db
+          property: database
+      - key: DB_USERNAME
+        fromDatabase:
+          name: mini-project-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: mini-project-db
+          property: password
+      # Sesi & cache guna database
+      - key: SESSION_DRIVER
+        value: database
+      - key: SESSION_SECURE_COOKIE
+        value: "true"
+      - key: CACHE_STORE
+        value: database
+      - key: QUEUE_CONNECTION
+        value: database

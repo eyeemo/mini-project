@@ -1,0 +1,13 @@
+.git
+.github
+node_modules
+vendor
+.env
+.env.*
+public/build
+public/hot
+storage/*.key
+storage/logs/*
+tests
+.claude
+*.md
