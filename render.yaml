@@ -12,7 +12,6 @@ services:
     name: mini-project
     runtime: docker
     plan: free
-    region: singapore
     healthCheckPath: /up
     envVars:
       - key: APP_NAME
