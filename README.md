@@ -1,5 +1,7 @@
 # Item Manager
 
+[![CI](https://github.com/eyeemo/mini-project/actions/workflows/ci.yml/badge.svg)](https://github.com/eyeemo/mini-project/actions/workflows/ci.yml)
+
 A small CRUD system for managing items — built from the user-flow diagram.
 **Stack:** Laravel 13 (API) · Vue 3 SPA (Vite) · PostgreSQL.
 
