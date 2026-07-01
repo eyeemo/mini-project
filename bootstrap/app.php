@@ -13,6 +13,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Trust Render's reverse proxy so HTTPS / secure cookies are detected.
+        $middleware->trustProxies(at: '*');
+
         // Enable Sanctum cookie-based (stateful) auth for the SPA's API calls.
         $middleware->statefulApi();
 
