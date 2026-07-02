@@ -2,25 +2,30 @@
 import { toastState, dismissToast } from '../store/toast';
 
 const styles = {
-    success: 'bg-emerald-600',
-    error: 'bg-rose-600',
-    info: 'bg-slate-700',
+    success: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300',
+    error: 'border-rose-500/30 bg-rose-500/10 text-rose-300',
+    info: 'border-white/10 bg-ink-800 text-slate-200',
 };
 const icons = { success: '✓', error: '✕', info: 'ℹ' };
+const iconTints = {
+    success: 'bg-emerald-500/20 text-emerald-300',
+    error: 'bg-rose-500/20 text-rose-300',
+    info: 'bg-white/10 text-slate-300',
+};
 </script>
 
 <template>
-    <div class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 w-80 max-w-[90vw]">
+    <div class="fixed bottom-4 right-4 z-60 flex w-80 max-w-[90vw] flex-col gap-2">
         <transition-group name="toast">
             <div
                 v-for="t in toastState.items"
                 :key="t.id"
-                class="flex items-center gap-3 rounded-lg px-4 py-3 text-white shadow-lg cursor-pointer"
+                class="flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 shadow-lg shadow-black/30 backdrop-blur"
                 :class="styles[t.type]"
                 @click="dismissToast(t.id)"
             >
-                <span class="font-bold">{{ icons[t.type] }}</span>
-                <span class="text-sm flex-1">{{ t.message }}</span>
+                <span class="grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs font-bold" :class="iconTints[t.type]">{{ icons[t.type] }}</span>
+                <span class="flex-1 text-sm text-slate-100">{{ t.message }}</span>
             </div>
         </transition-group>
     </div>

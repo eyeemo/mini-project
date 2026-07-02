@@ -1,174 +1,105 @@
 <script setup>
-import { ref, onMounted, watch } from 'vue';
+import { computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { ItemsApi } from '../api';
-import { toast } from '../store/toast';
-import ConfirmDialog from '../components/ConfirmDialog.vue';
+import { itemsStore } from '../store/items';
+import { ui } from '../store/ui';
+import { itemCode } from '../lib/format';
 
 const router = useRouter();
 
-const items = ref([]);
-const labels = ref([]);
-const loading = ref(false);
-const search = ref('');
-const activeLabel = ref('');
+onMounted(() => itemsStore.load());
 
-let debounce = null;
+const total = computed(() => itemsStore.all.length);
+const topCategory = computed(() => itemsStore.categories[0] || null);
 
-async function load() {
-    loading.value = true;
-    try {
-        const { data } = await ItemsApi.list({
-            q: search.value || undefined,
-            label: activeLabel.value || undefined,
-        });
-        items.value = data;
-    } catch (e) {
-        toast.error('Failed to load items.');
-    } finally {
-        loading.value = false;
-    }
-}
-
-async function loadLabels() {
-    try {
-        const { data } = await ItemsApi.labels();
-        labels.value = data;
-    } catch (e) {
-        /* non-critical */
-    }
-}
-
-watch(search, () => {
-    clearTimeout(debounce);
-    debounce = setTimeout(load, 300);
-});
-watch(activeLabel, load);
-
-onMounted(() => {
-    load();
-    loadLabels();
+const recent = computed(() => {
+    // Newest item first — fall back to id when timestamps are missing.
+    return [...itemsStore.all].sort((a, b) => {
+        const ta = new Date(a.created_at || 0).getTime();
+        const tb = new Date(b.created_at || 0).getTime();
+        return tb - ta || b.id - a.id;
+    })[0] || null;
 });
 
-// Delete flow: Select item -> Confirm dialog -> Delete -> Deleted toast
-const confirmOpen = ref(false);
-const deleting = ref(false);
-const target = ref(null);
-
-function askDelete(item) {
-    target.value = item;
-    confirmOpen.value = true;
-}
-
-async function doDelete() {
-    if (!target.value) return;
-    deleting.value = true;
-    try {
-        await ItemsApi.remove(target.value.id);
-        toast.success(`"${target.value.name}" deleted.`);
-        confirmOpen.value = false;
-        target.value = null;
-        await Promise.all([load(), loadLabels()]);
-    } catch (e) {
-        toast.error('Failed to delete item.');
-    } finally {
-        deleting.value = false;
-    }
-}
+const breakdown = computed(() =>
+    itemsStore.categories.map((c) => ({
+        ...c,
+        percent: total.value ? Math.round((c.count / total.value) * 100) : 0,
+    }))
+);
 </script>
 
 <template>
-    <div>
-        <!-- Dashboard header + Create entry point -->
-        <div class="flex items-center justify-between gap-4 mb-5">
-            <div>
-                <h1 class="text-2xl font-semibold text-slate-900">Dashboard</h1>
-                <p class="text-sm text-slate-500">Browse, search and manage your items.</p>
-            </div>
-            <RouterLink
-                to="/items/create"
-                class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-            >
-                <span class="text-lg leading-none">+</span> Add item
-            </RouterLink>
-        </div>
-
-        <!-- Search bar (always visible) + label filter -->
-        <div class="rounded-xl border border-slate-200 bg-white p-4 mb-5">
-            <div class="flex flex-col sm:flex-row gap-3">
-                <div class="relative flex-1">
-                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
-                    <input
-                        v-model="search"
-                        type="text"
-                        placeholder="Search by name, label or specification…"
-                        class="w-full rounded-lg border border-slate-300 bg-white pl-9 pr-3 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none"
-                    />
+    <div class="mx-auto max-w-5xl space-y-6">
+        <!-- Stat cards -->
+        <div class="grid gap-5 sm:grid-cols-2">
+            <div class="rounded-2xl border border-white/5 bg-ink-850 p-6">
+                <div class="flex items-start justify-between">
+                    <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Top Category</p>
+                    <span class="grid h-9 w-9 place-items-center rounded-lg bg-emerald-500/15 text-emerald-400">
+                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8" /><path d="M17 7h4v4" /></svg>
+                    </span>
                 </div>
-                <select
-                    v-model="activeLabel"
-                    class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none"
-                >
-                    <option value="">All categories</option>
-                    <option v-for="l in labels" :key="l" :value="l">{{ l }}</option>
-                </select>
+                <p class="mt-4 text-3xl font-bold text-white">{{ topCategory?.label || '—' }}</p>
+                <p class="mt-1 font-mono text-sm text-slate-500">{{ topCategory ? `${topCategory.count} items` : 'No items yet' }}</p>
+            </div>
+
+            <div class="rounded-2xl border border-white/5 bg-ink-850 p-6">
+                <div class="flex items-start justify-between">
+                    <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Recently Added</p>
+                    <span class="grid h-9 w-9 place-items-center rounded-lg bg-amber-500/15 text-amber-400">
+                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><path d="m9 11 3 3L22 4" /></svg>
+                    </span>
+                </div>
+                <p class="mt-4 truncate text-3xl font-bold text-white">{{ recent?.name || '—' }}</p>
+                <p class="mt-1 font-mono text-sm text-slate-500">{{ recent ? itemCode(recent.id) : 'No items yet' }}</p>
             </div>
         </div>
 
-        <!-- Item list / results -->
-        <div v-if="loading" class="text-center py-12 text-slate-400 text-sm">Loading…</div>
+        <!-- Category breakdown -->
+        <div class="rounded-2xl border border-white/5 bg-ink-850 p-6">
+            <h2 class="text-base font-bold text-white">Category Breakdown</h2>
 
-        <div v-else-if="items.length === 0" class="text-center py-12">
-            <p class="text-slate-500">No items found.</p>
-            <RouterLink to="/items/create" class="text-indigo-600 text-sm font-medium hover:underline">
-                Add your first item →
-            </RouterLink>
-        </div>
-
-        <div v-else class="grid gap-3 sm:grid-cols-2">
-            <div
-                v-for="item in items"
-                :key="item.id"
-                class="group rounded-xl border border-slate-200 bg-white p-4 hover:border-indigo-300 hover:shadow-sm transition cursor-pointer"
-                @click="router.push({ name: 'items.show', params: { id: item.id } })"
-            >
-                <div class="flex items-start justify-between gap-3">
-                    <div class="min-w-0">
-                        <h3 class="font-semibold text-slate-900 truncate">{{ item.name }}</h3>
-                        <span
-                            v-if="item.label"
-                            class="mt-1 inline-block rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600"
-                        >
-                            {{ item.label }}
+            <div v-if="breakdown.length" class="mt-5 space-y-5">
+                <div v-for="c in breakdown" :key="c.label">
+                    <div class="flex items-center justify-between text-sm">
+                        <span class="flex items-center gap-2 font-medium text-slate-200">
+                            <span class="h-2 w-2 rounded-full" :class="c.color.dot"></span>
+                            {{ c.label }}
                         </span>
+                        <span class="font-mono text-xs text-slate-500">{{ c.count }} items · {{ c.percent }}%</span>
                     </div>
-                    <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition" @click.stop>
-                        <RouterLink
-                            :to="{ name: 'items.edit', params: { id: item.id } }"
-                            class="rounded-md p-1.5 text-amber-600 hover:bg-amber-50"
-                            title="Edit"
-                        >✎</RouterLink>
-                        <button
-                            class="rounded-md p-1.5 text-rose-600 hover:bg-rose-50"
-                            title="Delete"
-                            @click="askDelete(item)"
-                        >🗑</button>
+                    <div class="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/5">
+                        <div class="h-full rounded-full transition-all" :class="c.color.bar" :style="{ width: c.percent + '%' }"></div>
                     </div>
                 </div>
-                <p v-if="item.specification" class="mt-2 text-sm text-slate-500 line-clamp-2">
-                    {{ item.specification }}
-                </p>
             </div>
+            <p v-else class="mt-4 text-sm text-slate-500">No categories yet — add your first item to get started.</p>
         </div>
 
-        <ConfirmDialog
-            :open="confirmOpen"
-            title="Delete item?"
-            :message="target ? `Are you sure you want to delete “${target.name}”? This cannot be undone.` : ''"
-            confirm-text="Delete"
-            :busy="deleting"
-            @confirm="doDelete"
-            @cancel="confirmOpen = false"
-        />
+        <!-- Quick actions -->
+        <div class="rounded-2xl border border-white/5 bg-ink-850 p-6">
+            <h2 class="text-base font-bold text-white">Quick Actions</h2>
+            <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                <button
+                    class="flex items-center gap-3 rounded-xl bg-brand-500/10 px-4 py-4 text-left ring-1 ring-brand-500/20 transition hover:bg-brand-500/20"
+                    @click="ui.openItemCreate()"
+                >
+                    <span class="grid h-9 w-9 place-items-center rounded-lg bg-brand-500 text-white">
+                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>
+                    </span>
+                    <span class="text-sm font-semibold text-brand-200">Add New Item</span>
+                </button>
+                <button
+                    class="flex items-center gap-3 rounded-xl bg-white/5 px-4 py-4 text-left ring-1 ring-white/10 transition hover:bg-white/10"
+                    @click="ui.category = ''; ui.search = ''; router.push({ name: 'items' })"
+                >
+                    <span class="grid h-9 w-9 place-items-center rounded-lg bg-ink-700 text-slate-300">
+                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg>
+                    </span>
+                    <span class="text-sm font-semibold text-slate-200">Browse All Items</span>
+                </button>
+            </div>
+        </div>
     </div>
 </template>
