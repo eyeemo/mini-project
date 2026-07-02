@@ -5,18 +5,38 @@ import { toast } from './store/toast';
 import Login from './pages/Login.vue';
 import Register from './pages/Register.vue';
 import Dashboard from './pages/Dashboard.vue';
-import ItemForm from './pages/ItemForm.vue';
+import Items from './pages/Items.vue';
 import ItemDetail from './pages/ItemDetail.vue';
 import Users from './pages/Users.vue';
 
 const routes = [
     { path: '/login', name: 'login', component: Login, meta: { guestOnly: true } },
     { path: '/register', name: 'register', component: Register, meta: { guestOnly: true } },
-    { path: '/', name: 'dashboard', component: Dashboard, meta: { requiresAuth: true } },
-    { path: '/items/create', name: 'items.create', component: ItemForm, meta: { requiresAuth: true } },
-    { path: '/items/:id', name: 'items.show', component: ItemDetail, props: true, meta: { requiresAuth: true } },
-    { path: '/items/:id/edit', name: 'items.edit', component: ItemForm, props: true, meta: { requiresAuth: true } },
-    { path: '/users', name: 'users', component: Users, meta: { requiresAuth: true, requiresAdmin: true } },
+    {
+        path: '/',
+        name: 'dashboard',
+        component: Dashboard,
+        meta: { requiresAuth: true, title: 'Dashboard', subtitle: 'Overview and recent activity' },
+    },
+    {
+        path: '/items',
+        name: 'items',
+        component: Items,
+        meta: { requiresAuth: true, title: 'Item Catalog', subtitle: 'Browse and manage all items' },
+    },
+    {
+        path: '/items/:id',
+        name: 'items.show',
+        component: ItemDetail,
+        props: true,
+        meta: { requiresAuth: true, title: 'Item Details', subtitle: 'Full specification and history' },
+    },
+    {
+        path: '/users',
+        name: 'users',
+        component: Users,
+        meta: { requiresAuth: true, requiresAdmin: true, title: 'Users', subtitle: 'Manage who can access the system' },
+    },
 ];
 
 const router = createRouter({
